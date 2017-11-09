@@ -69,6 +69,7 @@ struct _PhotosPreviewView
   gdouble event_y_last;
   gdouble zoom_begin;
   gdouble zoom_best_fit;
+  gdouble mipmap_level;
 };
 
 enum
@@ -427,6 +428,7 @@ photos_preview_view_notify_zoom (GObject *object, GParamSpec *pspec, gpointer us
   PhotosPreviewView *self = PHOTOS_PREVIEW_VIEW (user_data);
   PhotosImageView *view = PHOTOS_IMAGE_VIEW (object);
 
+  self->mipmap_level = photos_image_view_get_zoom (view);
   photos_preview_view_update_zoom_best_fit (self, view);
 }
 
@@ -596,9 +598,10 @@ photos_preview_view_blacks_exposure (PhotosPreviewView *self, GVariant *paramete
 
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+					self->mipmap_level,
                                         photos_preview_view_process,
-                                        self,
-                                        "gegl:exposure",
+					self,
+					"gegl:exposure",
                                         "black-level", blacks,
                                         "exposure", exposure,
                                         NULL);
@@ -633,6 +636,7 @@ photos_preview_view_brightness_contrast (PhotosPreviewView *self, GVariant *para
 
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+					self->mipmap_level,
                                         photos_preview_view_process,
                                         self,
                                         "gegl:brightness-contrast",
@@ -678,6 +682,7 @@ photos_preview_view_crop (PhotosPreviewView *self, GVariant *parameter)
 
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+					self->mipmap_level,
                                         photos_preview_view_process,
                                         self,
                                         "gegl:crop",
@@ -702,6 +707,7 @@ photos_preview_view_denoise (PhotosPreviewView *self, GVariant *parameter)
   iterations = g_variant_get_uint16 (parameter);
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+					self->mipmap_level,
                                         photos_preview_view_process,
                                         self,
                                         "gegl:noise-reduction",
@@ -723,6 +729,7 @@ photos_preview_view_insta (PhotosPreviewView *self, GVariant *parameter)
   preset = (PhotosOperationInstaPreset) g_variant_get_int16 (parameter);
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+					self->mipmap_level,
                                         photos_preview_view_process,
                                         self,
                                         "photos:insta-filter",
@@ -744,6 +751,7 @@ photos_preview_view_saturation (PhotosPreviewView *self, GVariant *parameter)
   scale = g_variant_get_double (parameter);
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+					self->mipmap_level,
                                         photos_preview_view_process,
                                         self,
                                         "photos:saturation",
@@ -765,6 +773,7 @@ photos_preview_view_sharpen (PhotosPreviewView *self, GVariant *parameter)
   scale = g_variant_get_double (parameter);
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+					self->mipmap_level,
                                         photos_preview_view_process,
                                         self,
                                         "gegl:unsharp-mask",
