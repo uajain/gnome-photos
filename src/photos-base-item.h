@@ -202,6 +202,7 @@ void                photos_base_item_open                    (PhotosBaseItem *se
 
 void                photos_base_item_operation_add_async     (PhotosBaseItem *self,
                                                               GCancellable *cancellable,
+							      gdouble mipmap_level,
                                                               GAsyncReadyCallback callback,
                                                               gpointer user_data,
                                                               const gchar *operation,
@@ -220,6 +221,7 @@ gboolean            photos_base_item_operation_get           (PhotosBaseItem *se
 void                photos_base_item_operation_remove_async  (PhotosBaseItem *self,
                                                               const gchar *operation,
                                                               GCancellable *cancellable,
+							      gdouble mipmap_level,
                                                               GAsyncReadyCallback callback,
                                                               gpointer user_data);
 

@@ -375,6 +375,7 @@ photos_image_view_update (PhotosImageView *self)
   gint viewport_height_real;
   gint viewport_width_real;
 
+  g_print ("this is image view update\n");
   g_object_freeze_notify (G_OBJECT (self));
 
   if (self->node == NULL)
