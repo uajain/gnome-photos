@@ -1035,6 +1035,7 @@ photos_tool_crop_activate (PhotosTool *tool, PhotosBaseItem *item, PhotosImageVi
 {
   PhotosToolCrop *self = PHOTOS_TOOL_CROP (tool);
   gboolean got_bbox_source;
+  gdouble mipmap_scale;
   gdouble height = -1.0;
   gdouble width = -1.0;
   gdouble x = -1.0;
@@ -1069,9 +1070,12 @@ photos_tool_crop_activate (PhotosTool *tool, PhotosBaseItem *item, PhotosImageVi
       self->crop_x = x;
       self->crop_y = y;
 
+      mipmap_scale = photos_image_view_get_zoom (view);
+
       photos_base_item_operation_remove_async (item,
                                                "gegl:crop",
                                                self->cancellable,
+                                               mipmap_scale,
                                                photos_tool_crop_process,
                                                self);
     }

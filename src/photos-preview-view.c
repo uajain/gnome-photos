@@ -67,6 +67,7 @@ struct _PhotosPreviewView
   gboolean grabbed;
   gdouble event_x_last;
   gdouble event_y_last;
+  gdouble mipmap_scale;
   gdouble zoom_begin;
   gdouble zoom_best_fit;
 };
@@ -88,6 +89,7 @@ static const gdouble ZOOM_FACTOR_3 = 1.3;
 
 
 static GtkWidget *photos_preview_view_create_view_with_container (PhotosPreviewView *self);
+static void photos_preview_view_process (GObject *source_object, GAsyncResult *res, gpointer user_data);
 
 
 static GtkWidget *
@@ -426,6 +428,21 @@ photos_preview_view_notify_zoom (GObject *object, GParamSpec *pspec, gpointer us
 {
   PhotosPreviewView *self = PHOTOS_PREVIEW_VIEW (user_data);
   PhotosImageView *view = PHOTOS_IMAGE_VIEW (object);
+  PhotosBaseItem *item;
+
+  item = PHOTOS_BASE_ITEM (photos_base_manager_get_active_object (self->item_mngr));
+  if (item == NULL)
+    return;
+
+  self->mipmap_scale = photos_image_view_get_zoom (view);
+  photos_base_item_operation_add_async (item,
+                                        self->cancellable,
+                                        self->mipmap_scale,
+                                        photos_preview_view_process,
+                                        self,
+                                        "gegl:nop",
+                                        NULL,
+                                        NULL);
 
   photos_preview_view_update_zoom_best_fit (self, view);
 }
@@ -596,6 +613,7 @@ photos_preview_view_blacks_exposure (PhotosPreviewView *self, GVariant *paramete
 
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+                                        self->mipmap_scale,
                                         photos_preview_view_process,
                                         self,
                                         "gegl:exposure",
@@ -633,6 +651,7 @@ photos_preview_view_brightness_contrast (PhotosPreviewView *self, GVariant *para
 
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+                                        self->mipmap_scale,
                                         photos_preview_view_process,
                                         self,
                                         "gegl:brightness-contrast",
@@ -678,6 +697,7 @@ photos_preview_view_crop (PhotosPreviewView *self, GVariant *parameter)
 
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+                                        self->mipmap_scale,
                                         photos_preview_view_process,
                                         self,
                                         "gegl:crop",
@@ -702,6 +722,7 @@ photos_preview_view_denoise (PhotosPreviewView *self, GVariant *parameter)
   iterations = g_variant_get_uint16 (parameter);
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+                                        self->mipmap_scale,
                                         photos_preview_view_process,
                                         self,
                                         "gegl:noise-reduction",
@@ -723,6 +744,7 @@ photos_preview_view_insta (PhotosPreviewView *self, GVariant *parameter)
   preset = (PhotosOperationInstaPreset) g_variant_get_int16 (parameter);
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+                                        self->mipmap_scale,
                                         photos_preview_view_process,
                                         self,
                                         "photos:insta-filter",
@@ -744,6 +766,7 @@ photos_preview_view_saturation (PhotosPreviewView *self, GVariant *parameter)
   scale = g_variant_get_double (parameter);
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+                                        self->mipmap_scale,
                                         photos_preview_view_process,
                                         self,
                                         "photos:saturation",
@@ -765,6 +788,7 @@ photos_preview_view_sharpen (PhotosPreviewView *self, GVariant *parameter)
   scale = g_variant_get_double (parameter);
   photos_base_item_operation_add_async (item,
                                         self->cancellable,
+                                        self->mipmap_scale,
                                         photos_preview_view_process,
                                         self,
                                         "gegl:unsharp-mask",
