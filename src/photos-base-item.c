@@ -1321,7 +1321,7 @@ photos_base_item_process_process (GObject *source_object, GAsyncResult *res, gpo
 static void
 photos_base_item_process_async (PhotosBaseItem *self,
                                 GCancellable *cancellable,
-				gdouble mipmap_level,
+				gdouble scale,                /* scale > 0.5 results level = 0 */
                                 GAsyncReadyCallback callback,
                                 gpointer user_data)
 {
@@ -1339,7 +1339,7 @@ photos_base_item_process_async (PhotosBaseItem *self,
 
   g_clear_object (&priv->processor);
   priv->processor = photos_pipeline_new_processor (pipeline);
-  gegl_processor_set_scale (priv->processor, mipmap_level);
+  gegl_processor_set_scale (priv->processor, scale);
 
   task = g_task_new (self, cancellable, callback, user_data);
   g_task_set_source_tag (task, photos_base_item_process_async);
@@ -1664,7 +1664,6 @@ photos_base_item_load_load_buffer (GObject *source_object, GAsyncResult *res, gp
 
   gegl_node_set (priv->buffer_source, "buffer", buffer, NULL);
 
-  // CHECK: anything >0.5 will use level 0 mipmap. No need to mipmapping while loading the buffer
   photos_base_item_process_async (self, cancellable, 1.0, photos_base_item_load_process, g_object_ref (task));
 
  out:
@@ -3856,7 +3855,7 @@ photos_base_item_open (PhotosBaseItem *self, GtkWindow *parent, guint32 timestam
 void
 photos_base_item_operation_add_async (PhotosBaseItem *self,
                                       GCancellable *cancellable,
-				      gdouble mipmap_level,
+				      gdouble scale,
                                       GAsyncReadyCallback callback,
                                       gpointer user_data,
                                       const gchar *operation,
@@ -3883,7 +3882,7 @@ photos_base_item_operation_add_async (PhotosBaseItem *self,
   task = g_task_new (self, cancellable, callback, user_data);
   g_task_set_source_tag (task, photos_base_item_operation_add_async);
 
-  photos_base_item_process_async (self, cancellable, mipmap_level, photos_base_item_common_process, g_object_ref (task));
+  photos_base_item_process_async (self, cancellable, scale, photos_base_item_common_process, g_object_ref (task));
 
   g_object_unref (task);
 }
@@ -3931,7 +3930,7 @@ void
 photos_base_item_operation_remove_async (PhotosBaseItem *self,
                                          const gchar *operation,
                                          GCancellable *cancellable,
-					 gdouble mipmap_level,
+					 gdouble scale,
                                          GAsyncReadyCallback callback,
                                          gpointer user_data)
 {
@@ -3956,7 +3955,7 @@ photos_base_item_operation_remove_async (PhotosBaseItem *self,
       goto out;
     }
 
-  photos_base_item_process_async (self, cancellable, mipmap_level, photos_base_item_common_process, g_object_ref (task));
+  photos_base_item_process_async (self, cancellable, scale, photos_base_item_common_process, g_object_ref (task));
 
  out:
   g_object_unref (task);
@@ -4046,7 +4045,7 @@ photos_base_item_pipeline_revert_async (PhotosBaseItem *self,
       goto out;
     }
 
-  photos_base_item_process_async (self, cancellable, self->saved_mipmap_scale, photos_base_item_common_process, g_object_ref (task));
+  photos_base_item_process_async (self, cancellable, 1.0, photos_base_item_common_process, g_object_ref (task));
 
  out:
   g_clear_object (&task);
@@ -4096,7 +4095,6 @@ photos_base_item_pipeline_revert_to_original_async (PhotosBaseItem *self,
       goto out;
     }
 
-  // anything > 0.5 will use level 0 mipmap and we do not need any mipmap level if pipeline destroys.
   photos_base_item_process_async (self, cancellable, 1.0, photos_base_item_common_process, g_object_ref (task));
 
  out:
