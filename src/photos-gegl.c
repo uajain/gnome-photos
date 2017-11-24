@@ -359,14 +359,26 @@ photos_gegl_processor_process_idle (gpointer user_data)
 {
   GTask *task = G_TASK (user_data);
   GeglProcessor *processor;
+  gint64 end;
+  gint64 *processing_time;
+  gint64 start;
+  gboolean more_work;
 
   processor = GEGL_PROCESSOR (g_task_get_source_object (task));
+  processing_time = (gint64 *) g_task_get_task_data (task);
 
   if (g_task_return_error_if_cancelled (task))
     goto done;
 
-  if (gegl_processor_work (processor, NULL))
+  start = g_get_monotonic_time ();
+  more_work = gegl_processor_work (processor, NULL);
+  end = g_get_monotonic_time ();
+  *processing_time += end - start;
+
+  if (more_work)
     return G_SOURCE_CONTINUE;
+
+  photos_debug (PHOTOS_DEBUG_GEGL, "GEGL: GeglProcessor: Total processing time: %" G_GINT64_FORMAT, *processing_time);
 
   g_task_return_boolean (task, TRUE);
 
@@ -382,12 +394,17 @@ photos_gegl_processor_process_async (GeglProcessor *processor,
                                      gpointer user_data)
 {
   GTask *task;
+  gint64 *processing_time = NULL;
 
   g_return_if_fail (GEGL_IS_PROCESSOR (processor));
   g_return_if_fail (cancellable == NULL || G_IS_CANCELLABLE (cancellable));
 
   task = g_task_new (processor, cancellable, callback, user_data);
   g_task_set_source_tag (task, photos_gegl_processor_process_async);
+
+  processing_time = g_malloc (sizeof (gint64));
+  *processing_time = 0;
+  g_task_set_task_data (task, processing_time, g_free);
 
   g_idle_add_full (G_PRIORITY_DEFAULT_IDLE,
                    photos_gegl_processor_process_idle,
