@@ -212,23 +212,38 @@ photos_gegl_create_pixbuf_from_node (GeglNode *node)
   return pixbuf;
 }
 
+static inline int gegl_level_from_scale (gfloat scale)
+{
+  gint level = 0;
+
+  while (scale <= 0.500001)
+  {
+    scale *= 2;
+    level++;
+  }
+ g_print ("GNOME-PHOTOS: Using level: %d\n", level);
+  return level;
+}
+
 
 GeglBuffer *
-photos_gegl_dup_buffer_from_node (GeglNode *node, const Babl *format)
+photos_gegl_dup_buffer_from_node (GeglNode *node, const Babl *format, gdouble zoom)
 {
   GeglBuffer *buffer;
   GeglRectangle bbox;
   gint64 end;
   gint64 start;
+  gint level = 0;
 
   g_return_val_if_fail (GEGL_IS_NODE (node), NULL);
 
   bbox = gegl_node_get_bounding_box (node);
   buffer = gegl_buffer_new (&bbox, format);
 
+  level = gegl_level_from_scale ((gfloat) zoom);
   start = g_get_monotonic_time ();
 
-  gegl_node_blit_buffer (node, buffer, &bbox, 0, GEGL_ABYSS_NONE);
+  gegl_node_blit_buffer (node, buffer, &bbox, level, GEGL_ABYSS_NONE);
 
   end = g_get_monotonic_time ();
   photos_debug (PHOTOS_DEBUG_GEGL, "GEGL: Dup Buffer from Node: %" G_GINT64_FORMAT, end - start);

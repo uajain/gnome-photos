@@ -235,7 +235,8 @@ photos_image_view_update_buffer (PhotosImageView *self)
   g_signal_handlers_block_by_func (self->node, photos_image_view_computed, self);
 
   format = babl_format ("cairo-ARGB32");
-  buffer = photos_gegl_dup_buffer_from_node (self->node, format);
+  buffer = photos_gegl_dup_buffer_from_node (self->node, format, self->zoom);
+  gegl_rectangle_dump (gegl_buffer_get_extent (buffer));
   g_set_object (&self->buffer, buffer);
 
   g_signal_handlers_unblock_by_func (self->node, photos_image_view_computed, self);
@@ -252,6 +253,7 @@ photos_image_view_update_region (PhotosImageView *self)
   g_clear_pointer (&self->region, (GDestroyNotify) cairo_region_destroy);
 
   bbox = gegl_node_get_bounding_box (self->node);
+  g_print ("original bounding box\n");gegl_rectangle_dump (&bbox);
   self->bbox_region = cairo_region_create_rectangle ((cairo_rectangle_int_t *) &bbox);
   self->region = cairo_region_create ();
 
@@ -492,6 +494,7 @@ photos_image_view_computed (PhotosImageView *self, GeglRectangle *rect)
 {
   cairo_status_t status;
 
+  g_print ("Entering image view computed, see zoom: %lf\n", self->zoom);
   g_return_if_fail (PHOTOS_IS_IMAGE_VIEW (self));
   g_return_if_fail (GEGL_IS_BUFFER (self->buffer));
   g_return_if_fail (GEGL_IS_NODE (self->node));
@@ -508,12 +511,16 @@ photos_image_view_computed (PhotosImageView *self, GeglRectangle *rect)
 
   status = cairo_region_union_rectangle (self->region, (cairo_rectangle_int_t *) rect);
   g_return_if_fail (status == CAIRO_STATUS_SUCCESS);
-
+  gegl_rectangle_dump (rect);
+  
+  g_print ("set extent: %d", gegl_buffer_set_extent (self->buffer, rect));
   if (!cairo_region_equal (self->bbox_region, self->region))
-    return;
-
+  { g_print ("I am gonna return");
+	  return;
+  }
   photos_debug (PHOTOS_DEBUG_GEGL, "PhotosImageView: Node (%p) Computing Completed", self->node);
 
+  g_print ("image view computed, subs call to update_buffer\n");
   photos_image_view_update_buffer (self);
   photos_image_view_update (self);
   gtk_widget_queue_draw (GTK_WIDGET (self));
@@ -527,6 +534,7 @@ photos_image_view_invalidated (PhotosImageView *self)
   g_return_if_fail (GEGL_IS_NODE (self->node));
 
   photos_debug (PHOTOS_DEBUG_GEGL, "PhotosImageView: Node (%p) Invalidated", self->node);
+  g_print ("Invalidated\n");
   photos_image_view_update_region (self);
 }
 
@@ -565,7 +573,7 @@ photos_image_view_draw_node (PhotosImageView *self, cairo_t *cr, GdkRectangle *r
   stride = bpp * roi.width;
   gegl_buffer_get (self->buffer,
                    &roi,
-                   self->zoom_visible_scaled,
+                   self->zoom,
                    format,
                    buf,
                    stride,

@@ -41,7 +41,7 @@ GeglNode        *photos_gegl_create_orientation_node      (GeglNode *parent, GQu
 
 GdkPixbuf       *photos_gegl_create_pixbuf_from_node      (GeglNode *node);
 
-GeglBuffer      *photos_gegl_dup_buffer_from_node         (GeglNode *node, const Babl *format);
+GeglBuffer      *photos_gegl_dup_buffer_from_node         (GeglNode *node, const Babl *format, gdouble zoom);
 
 void             photos_gegl_ensure_builtins              (void);
 
