@@ -78,7 +78,7 @@ photos_local_item_get_pipeline_path (PhotosLocalItem *self)
 {
   const gchar *data_dir;
   const gchar *uri;
-  gchar *md5;
+  g_autofree gchar *md5 = NULL;
   gchar *path;
 
   uri = photos_base_item_get_uri (PHOTOS_BASE_ITEM (self));
@@ -87,7 +87,6 @@ photos_local_item_get_pipeline_path (PhotosLocalItem *self)
 
   path = g_build_filename (data_dir, PACKAGE_TARNAME, "local", md5, NULL);
 
-  g_free (md5);
   return path;
 }
 
@@ -97,13 +96,12 @@ photos_local_item_create_pipeline_path (PhotosBaseItem *item)
 {
   PhotosLocalItem *self = PHOTOS_LOCAL_ITEM (item);
   gchar *path;
-  gchar *pipeline_dir;
+  g_autofree gchar *pipeline_dir = NULL;
 
   path = photos_local_item_get_pipeline_path (self);
   pipeline_dir = g_path_get_dirname (path);
   g_mkdir_with_parents (pipeline_dir, 0700);
 
-  g_free (pipeline_dir);
   return path;
 }
 
@@ -112,13 +110,13 @@ static gboolean
 photos_local_item_create_thumbnail (PhotosBaseItem *item, GCancellable *cancellable, GError **error)
 {
   PhotosLocalItem *self = PHOTOS_LOCAL_ITEM (item);
-  GFile *file = NULL;
+  g_autoptr (GFile) file = NULL;
   GQuark orientation;
   gboolean ret_val = FALSE;
   const gchar *mime_type;
   const gchar *uri;
-  gchar *pipeline_path = NULL;
-  gchar *pipeline_uri = NULL;
+  g_autofree gchar *pipeline_path = NULL;
+  g_autofree gchar *pipeline_uri = NULL;
   gint64 height;
   gint64 mtime;
   gint64 width;
@@ -148,9 +146,6 @@ photos_local_item_create_thumbnail (PhotosBaseItem *item, GCancellable *cancella
   ret_val = TRUE;
 
  out:
-  g_clear_object (&file);
-  g_free (pipeline_path);
-  g_free (pipeline_uri);
   return ret_val;
 }
 
@@ -179,12 +174,12 @@ photos_local_item_get_source_widget (PhotosBaseItem *item)
     }
   else
     {
-      GFile *file;
-      GFile *source_link;
+      g_autoptr (GFile) file = NULL;
+      g_autoptr (GFile) source_link = NULL;
       GtkWidget *label;
       const gchar *uri;
-      gchar *source_path = NULL;
-      gchar *source_uri = NULL;
+      g_autofree gchar *source_path = NULL;
+      g_autofree gchar *source_uri = NULL;
 
       uri = photos_base_item_get_uri (item);
       file = g_file_new_for_uri (uri);
@@ -198,11 +193,6 @@ photos_local_item_get_source_widget (PhotosBaseItem *item)
       label = gtk_bin_get_child (GTK_BIN (source_widget));
       gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
       gtk_label_set_max_width_chars (GTK_LABEL (label), 40);
-
-      g_free (source_path);
-      g_free (source_uri);
-      g_object_unref (source_link);
-      g_object_unref (file);
     }
 
   return source_widget;
@@ -217,21 +207,21 @@ photos_local_item_metadata_add_shared (PhotosBaseItem  *item,
                                        GCancellable    *cancellable,
                                        GError         **error)
 {
-  GVariant *shared_variant = NULL;
+  g_autoptr (GVariant) shared_variant = NULL;
   GVariantBuilder builder;
   const GVariantType *tuple_items[] = {G_VARIANT_TYPE_STRING,   /* provider-type */
                                        G_VARIANT_TYPE_STRING,   /* account-identity */
                                        G_VARIANT_TYPE_STRING};  /* shared-id */
-  GVariantType *array_type = NULL;
-  GVariantType *tuple_type = NULL;
-  GExiv2Metadata *metadata = NULL;
+  g_autoptr (GVariantType) array_type = NULL;
+  g_autoptr (GVariantType) tuple_type = NULL;
+  GExiv2Metadata *metadata = NULL; /* TODO: Use g_autoptr */
   gboolean ret_val = FALSE;
   const gchar *mime_type;
   const gchar *shared_tag = "Xmp.gnome.photos-shared";
   const gchar *version_tag = "Xmp.gnome.photos-xmp-version";
-  gchar *path = NULL;
-  gchar *shared_string = NULL;
-  gchar *tuple_type_format = NULL;
+  g_autofree gchar *path = NULL;
+  g_autofree gchar *shared_string = NULL;
+  g_autofree gchar *tuple_type_format = NULL;
 
   mime_type = photos_base_item_get_mime_type (item);
   if (g_strcmp0 (mime_type, "image/png") != 0
@@ -268,7 +258,7 @@ photos_local_item_metadata_add_shared (PhotosBaseItem  *item,
   shared_string = gexiv2_metadata_get_tag_string (metadata, shared_tag);
   if (shared_string != NULL)
     {
-      GVariant *old_shared_variant = NULL;
+      g_autoptr (GVariant) old_shared_variant = NULL;
       GVariant *child = NULL;
       GVariantIter iter;
 
@@ -284,8 +274,6 @@ photos_local_item_metadata_add_shared (PhotosBaseItem  *item,
           g_variant_unref (child);
           child = g_variant_iter_next_value (&iter);
         }
-
-      g_variant_unref (old_shared_variant);
     }
 
   shared_variant = g_variant_builder_end (&builder);
@@ -306,12 +294,7 @@ photos_local_item_metadata_add_shared (PhotosBaseItem  *item,
 
  out:
   g_clear_object (&metadata);
-  g_clear_pointer (&array_type, (GDestroyNotify) g_variant_type_free);
-  g_clear_pointer (&tuple_type, (GDestroyNotify) g_variant_type_free);
-  g_clear_pointer (&shared_variant, (GDestroyNotify) g_variant_unref);
-  g_free (path);
-  g_free (shared_string);
-  g_free (tuple_type_format);
+
   return ret_val;
 }
 
@@ -319,31 +302,31 @@ photos_local_item_metadata_add_shared (PhotosBaseItem  *item,
 static void
 photos_local_item_trash_finish (GObject *source_object, GAsyncResult *res, gpointer user_data)
 {
-  GError *error;
   GFile *file = G_FILE (source_object);
 
-  error = NULL;
-  g_file_trash_finish (file, res, &error);
-  if (error != NULL)
-    {
-      if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-        {
-          PhotosLocalItem *self = PHOTOS_LOCAL_ITEM (user_data);
-          const gchar *uri;
+  {
+    g_autoptr (GError) error = NULL;
 
-          uri = photos_base_item_get_uri (PHOTOS_BASE_ITEM (self));
-          g_warning ("Unable to trash %s: %s", uri, error->message);
-        }
+    g_file_trash_finish (file, res, &error);
+    if (error != NULL)
+      {
+        if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+          {
+            PhotosLocalItem *self = PHOTOS_LOCAL_ITEM (user_data);
+            const gchar *uri;
 
-      g_error_free (error);
-    }
+            uri = photos_base_item_get_uri (PHOTOS_BASE_ITEM (self));
+            g_warning ("Unable to trash %s: %s", uri, error->message);
+          }
+      }
+  }
 }
 
 
 static void
 photos_local_item_trash (PhotosBaseItem *item)
 {
-  GFile *file;
+  g_autoptr (GFile) file = NULL;
   const gchar *uri;
   PhotosLocalItem *self = PHOTOS_LOCAL_ITEM (item);
 
@@ -353,9 +336,6 @@ photos_local_item_trash (PhotosBaseItem *item)
   uri = photos_base_item_get_uri (item);
   file = g_file_new_for_uri (uri);
   g_file_trash_async (file, G_PRIORITY_DEFAULT, self->cancellable, photos_local_item_trash_finish, self);
-
-  g_object_unref (file);
-
 }
 
 
@@ -363,7 +343,7 @@ static void
 photos_local_item_constructed (GObject *object)
 {
   PhotosLocalItem *self = PHOTOS_LOCAL_ITEM (object);
-  GAppInfo *default_app = NULL;
+  g_autoptr (GAppInfo) default_app = NULL;
   const gchar *mime_type;
 
   G_OBJECT_CLASS (photos_local_item_parent_class)->constructed (object);
@@ -377,7 +357,6 @@ photos_local_item_constructed (GObject *object)
     return;
 
   photos_base_item_set_default_app (PHOTOS_BASE_ITEM (self), default_app);
-  g_object_unref (default_app);
 }
 
 
