@@ -2749,49 +2749,48 @@ static void
 photos_base_item_print_load (GObject *source_object, GAsyncResult *res, gpointer user_data)
 {
   PhotosBaseItem *self = PHOTOS_BASE_ITEM (source_object);
-  GError *error;
-  GtkWindow *toplevel = GTK_WINDOW (user_data);
-  GeglNode *node;
-  GtkPrintOperation *print_op = NULL;
+  g_autoptr (GtkWindow) toplevel = GTK_WINDOW (user_data);
+  g_autoptr (GeglNode) node = NULL;
+  g_autoptr (GtkPrintOperation) print_op = NULL;
   GtkPrintOperationResult print_res;
 
-  error = NULL;
-  node = photos_base_item_load_finish (self, res, &error);
-  if (error != NULL)
-    {
-      g_warning ("Unable to load the item: %s", error->message);
-      g_error_free (error);
-      goto out;
-    }
+  {
+    g_autoptr (GError) error = NULL;
+    node = photos_base_item_load_finish (self, res, &error);
+    if (error != NULL)
+      {
+        g_warning ("Unable to load the item: %s", error->message);
+        goto out;
+      }
+  }
 
   print_op = photos_print_operation_new (self, node);
 
   /* It is self managing. */
   photos_print_notification_new (print_op);
 
-  error = NULL;
-  print_res = gtk_print_operation_run (print_op, GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG, toplevel, &error);
-  if (print_res == GTK_PRINT_OPERATION_RESULT_APPLY)
-    {
-      GAction *action;
-      GApplication *app;
-      GVariant *new_state;
+  {
+    g_autoptr (GError) error = NULL;
+    print_res = gtk_print_operation_run (print_op, GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG, toplevel, &error);
+    if (print_res == GTK_PRINT_OPERATION_RESULT_APPLY)
+      {
+        GAction *action;
+        GApplication *app;
+        GVariant *new_state;
 
-      app = g_application_get_default ();
-      action = g_action_map_lookup_action (G_ACTION_MAP (app), "selection-mode");
-      new_state = g_variant_new ("b", FALSE);
-      g_action_change_state (action, new_state);
-    }
-  else if (print_res == GTK_PRINT_OPERATION_RESULT_ERROR)
-    {
-      g_warning ("Unable to print file: %s", error->message);
-      g_error_free (error);
-    }
+        app = g_application_get_default ();
+        action = g_action_map_lookup_action (G_ACTION_MAP (app), "selection-mode");
+        new_state = g_variant_new ("b", FALSE);
+        g_action_change_state (action, new_state);
+      }
+    else if (print_res == GTK_PRINT_OPERATION_RESULT_ERROR)
+      {
+        g_warning ("Unable to print file: %s", error->message);
+      }
+  }
 
  out:
-  g_clear_object (&node);
-  g_clear_object (&print_op);
-  g_object_unref (toplevel);
+  return;
 }
 
 
@@ -3081,7 +3080,7 @@ photos_base_item_create_preview (PhotosBaseItem *self,
   const Babl *format;
   GeglBuffer *preview_source_buffer;
   GeglNode *buffer_source;
-  GeglNode *graph = NULL;
+  g_autoptr (GeglNode) graph = NULL;
   GeglNode *operation_node;
   GeglOperation *op;
   GeglRectangle bbox;
@@ -3148,8 +3147,6 @@ photos_base_item_create_preview (PhotosBaseItem *self,
   cairo_surface_set_device_scale (surface, (gdouble) scale, (gdouble) scale);
   cairo_surface_set_user_data (surface, &key, buf, (cairo_destroy_func_t) g_free);
 
-  g_object_unref (graph);
-
   return surface;
 }
 
@@ -3190,7 +3187,7 @@ photos_base_item_download_async (PhotosBaseItem *self,
                                  GAsyncReadyCallback callback,
                                  gpointer user_data)
 {
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
 
@@ -3198,7 +3195,6 @@ photos_base_item_download_async (PhotosBaseItem *self,
   g_task_set_source_tag (task, photos_base_item_download_async);
 
   g_task_run_in_thread (task, photos_base_item_download_in_thread_func);
-  g_object_unref (task);
 }
 
 
@@ -3597,7 +3593,7 @@ photos_base_item_guess_save_sizes_async (PhotosBaseItem *self,
                                          gpointer user_data)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
   priv = photos_base_item_get_instance_private (self);
@@ -3608,8 +3604,6 @@ photos_base_item_guess_save_sizes_async (PhotosBaseItem *self,
   g_task_set_source_tag (task, photos_base_item_guess_save_sizes_async);
 
   photos_base_item_load_async (self, cancellable, photos_base_item_guess_save_sizes_load, g_object_ref (task));
-
-  g_object_unref (task);
 }
 
 
@@ -3715,7 +3709,7 @@ photos_base_item_load_async (PhotosBaseItem *self,
                              gpointer user_data)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task = NULL;
+  g_autoptr (GTask) task = NULL;
   PhotosPipeline *pipeline;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
@@ -3744,7 +3738,7 @@ photos_base_item_load_async (PhotosBaseItem *self,
                                         g_object_ref (task));
 
  out:
-  g_clear_object (&task);
+  return;
 }
 
 
@@ -3775,7 +3769,7 @@ photos_base_item_metadata_add_shared_async (PhotosBaseItem *self,
                                             gpointer user_data)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
   PhotosBaseItemMetadataAddSharedData *data;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
@@ -3793,7 +3787,6 @@ photos_base_item_metadata_add_shared_async (PhotosBaseItem *self,
   g_task_set_task_data (task, data, (GDestroyNotify) photos_base_item_metadata_add_shared_data_free);
 
   g_task_run_in_thread (task, photos_base_item_metadata_add_shared_in_thread_func);
-  g_object_unref (task);
 }
 
 
@@ -3832,7 +3825,7 @@ photos_base_item_operation_add_async (PhotosBaseItem *self,
                                       ...)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
   PhotosPipeline *pipeline;
   va_list ap;
 
@@ -3852,8 +3845,6 @@ photos_base_item_operation_add_async (PhotosBaseItem *self,
   g_task_set_source_tag (task, photos_base_item_operation_add_async);
 
   photos_base_item_process_async (self, cancellable, photos_base_item_common_process, g_object_ref (task));
-
-  g_object_unref (task);
 }
 
 
@@ -3906,7 +3897,7 @@ photos_base_item_operation_remove_async (PhotosBaseItem *self,
                                          gpointer user_data)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
   PhotosPipeline *pipeline;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
@@ -3929,7 +3920,7 @@ photos_base_item_operation_remove_async (PhotosBaseItem *self,
   photos_base_item_process_async (self, cancellable, photos_base_item_common_process, g_object_ref (task));
 
  out:
-  g_object_unref (task);
+  return;
 }
 
 
@@ -3957,7 +3948,7 @@ photos_base_item_pipeline_is_edited_async (PhotosBaseItem *self,
                                            gpointer user_data)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
   priv = photos_base_item_get_instance_private (self);
@@ -3972,7 +3963,6 @@ photos_base_item_pipeline_is_edited_async (PhotosBaseItem *self,
                                         photos_base_item_pipeline_is_edited_load_pipeline,
                                         g_object_ref (task));
 
-  g_object_unref (task);
 }
 
 
@@ -4000,7 +3990,7 @@ photos_base_item_pipeline_revert_async (PhotosBaseItem *self,
                                         gpointer user_data)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task = NULL;
+  g_autoptr (GTask) task = NULL;
   PhotosPipeline *pipeline;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
@@ -4025,7 +4015,7 @@ photos_base_item_pipeline_revert_async (PhotosBaseItem *self,
   photos_base_item_process_async (self, cancellable, photos_base_item_common_process, g_object_ref (task));
 
  out:
-  g_clear_object (&task);
+  return;
 }
 
 
@@ -4054,7 +4044,7 @@ photos_base_item_pipeline_revert_to_original_async (PhotosBaseItem *self,
 
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task = NULL;
+  g_autoptr (GTask) task = NULL;
   PhotosPipeline *pipeline;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
@@ -4079,7 +4069,7 @@ photos_base_item_pipeline_revert_to_original_async (PhotosBaseItem *self,
   photos_base_item_process_async (self, cancellable, photos_base_item_common_process, g_object_ref (task));
 
  out:
-  g_clear_object (&task);
+  return;
 }
 
 
@@ -4107,7 +4097,7 @@ photos_base_item_pipeline_save_async (PhotosBaseItem *self,
                                       gpointer user_data)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
   PhotosPipeline *pipeline;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
@@ -4122,8 +4112,6 @@ photos_base_item_pipeline_save_async (PhotosBaseItem *self,
   g_task_set_source_tag (task, photos_base_item_pipeline_save_async);
 
   photos_pipeline_save_async (pipeline, cancellable, photos_base_item_pipeline_save_save, g_object_ref (task));
-
-  g_object_unref (task);
 }
 
 
@@ -4182,7 +4170,7 @@ photos_base_item_refresh (PhotosBaseItem *self)
   PhotosBaseItemPrivate *priv;
   GApplication *app;
   PhotosSearchContextState *state;
-  PhotosSingleItemJob *job;
+  g_autoptr (PhotosSingleItemJob) job = NULL;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
   priv = photos_base_item_get_instance_private (self);
@@ -4197,7 +4185,6 @@ photos_base_item_refresh (PhotosBaseItem *self)
                               NULL,
                               photos_base_item_refresh_executed,
                               g_object_ref (self));
-  g_object_unref (job);
 }
 
 
@@ -4210,7 +4197,7 @@ photos_base_item_save_to_dir_async (PhotosBaseItem *self,
                                     gpointer user_data)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
   PhotosBaseItemSaveData *data;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
@@ -4227,8 +4214,6 @@ photos_base_item_save_to_dir_async (PhotosBaseItem *self,
   g_task_set_task_data (task, data, (GDestroyNotify) photos_base_item_save_data_free);
 
   photos_base_item_load_async (self, cancellable, photos_base_item_save_to_dir_load, g_object_ref (task));
-
-  g_object_unref (task);
 }
 
 
@@ -4259,7 +4244,7 @@ photos_base_item_save_to_file_async (PhotosBaseItem *self,
                                      gpointer user_data)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
   PhotosBaseItemSaveToFileData *data;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
@@ -4275,8 +4260,6 @@ photos_base_item_save_to_file_async (PhotosBaseItem *self,
   g_task_set_task_data (task, data, (GDestroyNotify) photos_base_item_save_to_file_data_free);
 
   photos_base_item_load_async (self, cancellable, photos_base_item_save_to_file_load, g_object_ref (task));
-
-  g_object_unref (task);
 }
 
 
@@ -4306,7 +4289,7 @@ photos_base_item_save_to_stream_async (PhotosBaseItem *self,
                                        gpointer user_data)
 {
   PhotosBaseItemPrivate *priv;
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
   PhotosBaseItemSaveToStreamData *data;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
@@ -4323,8 +4306,6 @@ photos_base_item_save_to_stream_async (PhotosBaseItem *self,
   g_task_set_task_data (task, data, (GDestroyNotify) photos_base_item_save_to_stream_data_free);
 
   photos_base_item_load_async (self, cancellable, photos_base_item_save_to_stream_load, g_object_ref (task));
-
-  g_object_unref (task);
 }
 
 
@@ -4403,7 +4384,7 @@ void
 photos_base_item_trash (PhotosBaseItem *self)
 {
   PhotosBaseItemPrivate *priv;
-  PhotosDeleteItemJob *job;
+  g_autoptr (PhotosDeleteItemJob) job = NULL;
 
   g_return_if_fail (PHOTOS_IS_BASE_ITEM (self));
   priv = photos_base_item_get_instance_private (self);
@@ -4412,5 +4393,4 @@ photos_base_item_trash (PhotosBaseItem *self)
 
   job = photos_delete_item_job_new (priv->id);
   photos_delete_item_job_run (job, NULL, NULL, NULL);
-  g_object_unref (job);
 }
