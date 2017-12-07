@@ -56,28 +56,33 @@ photos_pixbuf_new_from_file_data_free (PhotosPixbufNewFromFileData *data)
 }
 
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (PhotosPixbufNewFromFileData, photos_pixbuf_new_from_file_data_free);
+
+
 static void
 photos_pixbuf_new_from_file_at_size_in_thread_func (GTask *task,
                                                     gpointer source_object,
                                                     gpointer task_data,
                                                     GCancellable *cancellable)
 {
-  GError *error;
-  GdkPixbuf *result = NULL;
+  g_autoptr (GdkPixbuf) result = NULL;
   PhotosPixbufNewFromFileData *data = (PhotosPixbufNewFromFileData *) task_data;
 
-  error = NULL;
-  result = gdk_pixbuf_new_from_file_at_size (data->filename, data->width, data->height, &error);
-  if (error != NULL)
-    {
-      g_task_return_error (task, error);
-      goto out;
-    }
+  {
+    g_autoptr (GError) error = NULL;
+
+    result = gdk_pixbuf_new_from_file_at_size (data->filename, data->width, data->height, &error);
+    if (error != NULL)
+      {
+        g_task_return_error (task, g_steal_pointer (&error));
+        goto out;
+      }
+  }
 
   g_task_return_pointer (task, g_object_ref (result), g_object_unref);
 
  out:
-  g_clear_object (&result);
+  return;
 }
 
 
@@ -89,8 +94,8 @@ photos_pixbuf_new_from_file_at_size_async (const gchar *filename,
                                            GAsyncReadyCallback callback,
                                            gpointer user_data)
 {
-  GTask *task;
-  PhotosPixbufNewFromFileData *data;
+  g_autoptr (GTask) task = NULL;
+  g_autoptr (PhotosPixbufNewFromFileData) data = NULL;
 
   g_return_if_fail (filename != NULL && filename[0] != '\0');
   g_return_if_fail (cancellable == NULL || G_IS_CANCELLABLE (cancellable));
@@ -100,10 +105,9 @@ photos_pixbuf_new_from_file_at_size_async (const gchar *filename,
   task = g_task_new (NULL, cancellable, callback, user_data);
   g_task_set_return_on_cancel (task, TRUE);
   g_task_set_source_tag (task, photos_pixbuf_new_from_file_at_size_async);
-  g_task_set_task_data (task, data, (GDestroyNotify) photos_pixbuf_new_from_file_data_free);
+  g_task_set_task_data (task, g_steal_pointer (&data), (GDestroyNotify) photos_pixbuf_new_from_file_data_free);
 
   g_task_run_in_thread (task, photos_pixbuf_new_from_file_at_size_in_thread_func);
-  g_object_unref (task);
 }
 
 
