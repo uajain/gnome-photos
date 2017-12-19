@@ -54,23 +54,25 @@ G_DEFINE_TYPE (PhotosSingleItemJob, photos_single_item_job, G_TYPE_OBJECT);
 static void
 photos_single_item_job_cursor_next (GObject *source_object, GAsyncResult *res, gpointer user_data)
 {
-  GTask *task = G_TASK (user_data);
-  TrackerSparqlCursor *cursor = TRACKER_SPARQL_CURSOR (source_object);
+  g_autoptr (GTask) task = G_TASK (user_data);
+  TrackerSparqlCursor *cursor = TRACKER_SPARQL_CURSOR (source_object); /* TODO: Use g_autoptr */
   GDestroyNotify result_destroy = NULL;
-  GError *error;
   gboolean success;
   gpointer result = NULL;
 
-  error = NULL;
-  /* Note that tracker_sparql_cursor_next_finish can return FALSE even
-   * without an error.
-   */
-  success = tracker_sparql_cursor_next_finish (cursor, res, &error);
-  if (error != NULL)
-    {
-      g_task_return_error (task, error);
-      goto out;
-    }
+  {
+    g_autoptr (GError) error = NULL;
+
+    /* Note that tracker_sparql_cursor_next_finish can return FALSE even
+     * without an error.
+     */
+    success = tracker_sparql_cursor_next_finish (cursor, res, &error);
+    if (error != NULL)
+      {
+        g_task_return_error (task, g_steal_pointer (&error));
+        goto out;
+      }
+  }
 
   if (success)
     {
@@ -81,7 +83,7 @@ photos_single_item_job_cursor_next (GObject *source_object, GAsyncResult *res, g
   g_task_return_pointer (task, result, result_destroy);
 
  out:
-  g_object_unref (task);
+  return;
 }
 
 
@@ -89,8 +91,8 @@ static void
 photos_single_item_job_query_executed (GObject *source_object, GAsyncResult *res, gpointer user_data)
 {
   GTask *task = G_TASK (user_data);
-  TrackerSparqlConnection *connection = TRACKER_SPARQL_CONNECTION (source_object);
-  TrackerSparqlCursor *cursor;
+  TrackerSparqlConnection *connection = TRACKER_SPARQL_CONNECTION (source_object); /* TODO: Use g_autoptr */
+  TrackerSparqlCursor *cursor; /* TODO: Use g_autoptr */
   GError *error;
 
   error = NULL;
@@ -204,8 +206,8 @@ photos_single_item_job_run (PhotosSingleItemJob *self,
                             GAsyncReadyCallback callback,
                             gpointer user_data)
 {
-  GTask *task;
-  PhotosQuery *query = NULL;
+  g_autoptr (GTask) task = NULL;
+  g_autoptr  (PhotosQuery) query = NULL;
 
   task = g_task_new (self, cancellable, callback, user_data);
   g_task_set_source_tag (task, photos_single_item_job_run);
@@ -225,6 +227,5 @@ photos_single_item_job_run (PhotosSingleItemJob *self,
                                g_object_unref);
 
  out:
-  g_clear_object (&query);
-  g_object_unref (task);
+  return;
 }
