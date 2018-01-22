@@ -162,6 +162,50 @@ photos_local_item_download (PhotosBaseItem *item, GCancellable *cancellable, GEr
 }
 
 
+static void
+photos_local_item_source_link_activated (PhotosBaseItem *item)
+{
+  g_autoptr (GAppInfo) default_app = NULL;
+  g_autofree gchar *command_line = NULL;
+  const gchar *uri;
+/*
+  default_app = g_app_info_get_default_for_uri_scheme ("file");
+  g_return_if_fail (default_app != NULL);
+
+  if (g_strcmp0 ("nautilus", g_app_info_get_name (default_app)) != 0)
+    goto out;
+*/
+  uri = photos_base_item_get_uri (item);
+  command_line = g_strconcat ("nautilus -s ", uri, NULL);
+
+  {
+    g_autoptr (GError) error = NULL;
+
+    default_app = g_app_info_create_from_commandline (command_line, NULL, G_APP_INFO_CREATE_NONE, &error);
+    if (error != NULL)
+      {
+        g_warning ("Unable to launch nautilus: %s", error->message);
+        goto out;
+      }
+  }
+
+  {
+    g_autoptr (GError) error = NULL;
+
+    g_app_info_launch_default_for_uri ("file:///home/uajain/Pictures", NULL, &error);
+    if (error != NULL)
+      {
+        g_warning ("Unable to launch nautilus: %s", error->message);
+        goto out;
+      }
+  }
+
+out:
+  g_object_unref (item);
+  return;
+}
+
+
 static GtkWidget *
 photos_local_item_get_source_widget (PhotosBaseItem *item)
 {
@@ -188,6 +232,10 @@ photos_local_item_get_source_widget (PhotosBaseItem *item)
       source_uri = g_file_get_uri (source_link);
 
       source_widget = gtk_link_button_new_with_label (source_uri, source_path);
+      g_signal_connect_swapped (source_widget,
+                                "activate-link",
+                                G_CALLBACK (photos_local_item_source_link_activated),
+                                g_object_ref (item));
       gtk_widget_set_halign (source_widget, GTK_ALIGN_START);
 
       label = gtk_bin_get_child (GTK_BIN (source_widget));
