@@ -388,6 +388,7 @@ EXTRA_DIST = \
 	photos-selection-toolbar.ui \
 	photos-share-dialog.ui \
 	photos-zoom-controls.ui \
+	photos-file-manager1.xml \
 	photos-gom-miner.xml \
 	photos-thumbnailer-dbus.xml \
 	photos-tracker-extract-priority.xml \
@@ -613,6 +614,14 @@ photos-dleyna-renderer-push-host.h photos-dleyna-renderer-push-host.c: photos-dl
 		--generate-c-code photos-dleyna-renderer-push-host \
 		--interface-prefix com.intel.dLeynaRenderer. \
 		$<
+
+photos-file-manager1.h photos-file-manager1.c: photos-file-manager1.xml
+  $(AM_V_GEN)gdbus-codegen \
+    --c-generate-autocleanup all \
+    --c-namespace Freedesktop \
+    --generate-c-code photos-file-manager1 \
+    --interface-prefix org.freedesktop.FileManager1 \
+    $<
 
 photos-gom-miner.h photos-gom-miner.c: photos-gom-miner.xml
 	$(AM_V_GEN)gdbus-codegen \
