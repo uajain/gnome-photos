@@ -35,7 +35,7 @@
 #include "photos-glib.h"
 #include "photos-local-item.h"
 #include "photos-utils.h"
-
+#include "photos-file-manager1.h"
 
 struct _PhotosLocalItem
 {
@@ -55,88 +55,30 @@ G_DEFINE_TYPE_WITH_CODE (PhotosLocalItem, photos_local_item, PHOTOS_TYPE_BASE_IT
 static gboolean
 photos_local_item_source_widget_activate_link (GtkLinkButton *button, gpointer user_data)
 {
-  g_autoptr (GAppInfo) default_app = NULL;
-  g_autoptr (GAppInfo) nautilus_app = NULL;
-  g_autoptr (GAppLaunchContext) ctx = NULL;
-  PhotosLocalItem *self;
-  gboolean ret_val = GDK_EVENT_PROPAGATE;
-  const gchar *commandline = "nautilus --select";
-  const gchar *default_app_id;
-  const gchar *source_uri;
-  const gchar *uri;
-  g_autofree gchar *command_line = NULL;
-  g_autofree gchar *source_uri_scheme = NULL;
 
-  g_return_val_if_fail (GTK_IS_LINK_BUTTON (button), GDK_EVENT_PROPAGATE);
-  g_return_val_if_fail (PHOTOS_IS_LOCAL_ITEM (user_data), GDK_EVENT_PROPAGATE);
+  GDBusProxy *proxy;
+  GError *error = NULL;
+  gboolean result = FALSE;
+  const gchar* index_types[] = {"file:///home/uajain/Pictures/demo.jpg", NULL};
 
-  self = PHOTOS_LOCAL_ITEM (user_data);
-
-  source_uri = gtk_link_button_get_uri (button);
-
-  /* Even though g_file_query_default_handler calls
-   * g_app_info_get_default_for_uri_scheme, we have to do it here in
-   * case GFile can't parse source_uri correctly.
-   *
-   * See glib/gio/gappinfo.c
-   */
-
-  source_uri_scheme = g_uri_parse_scheme (source_uri);
-  if (source_uri_scheme != NULL && source_uri_scheme[0] != '\0')
-    default_app = g_app_info_get_default_for_uri_scheme (source_uri_scheme);
-
-  if (default_app == NULL)
-    {
-      g_autoptr (GFile) source_link = NULL;
-
-      source_link = g_file_new_for_uri (source_uri);
-
-      {
-        g_autoptr (GError) error = NULL;
-
-        default_app = g_file_query_default_handler (source_link, NULL, &error);
-        if (error != NULL)
-          {
-            g_warning ("Unable to query default handler for %s: %s", source_uri, error->message);
-            goto out;
-          }
-      }
-    }
-
-  g_return_val_if_fail (G_IS_APP_INFO (default_app), GDK_EVENT_PROPAGATE);
-
-  default_app_id = g_app_info_get_id (default_app);
-  if (g_strcmp0 (default_app_id, "org.gnome.Nautilus.desktop") != 0)
-    goto out;
-
+    proxy = g_dbus_proxy_new_for_bus_sync (G_BUS_TYPE_SESSION,
+                                           G_DBUS_PROXY_FLAGS_NONE,
+                                           NULL,
+                                           "org.freedesktop.FileManager1",
+                                           "/org/freedesktop/FileManager1",
+                                           "org.freedesktop.FileManager1",
+                                           NULL, &error);
+  if (proxy == NULL)
   {
-    g_autoptr (GError) error = NULL;
-
-    nautilus_app = g_app_info_create_from_commandline (commandline, NULL, G_APP_INFO_CREATE_NONE, &error);
-    if (error != NULL)
-      {
-        g_warning ("Unable to create GAppInfo from '%s': %s", commandline, error->message);
-        goto out;
-      }
+    g_warning ("failed to connectiong the proxy\n");
+    g_print ("Failed to get the proxy\n");
+    return FALSE;
   }
 
-  uri = photos_base_item_get_uri (PHOTOS_BASE_ITEM (self));
-  ctx = photos_utils_new_app_launch_context_from_widget (GTK_WIDGET (button));
-
-  {
-    g_autoptr (GError) error = NULL;
-
-    if (!photos_glib_app_info_launch_uri (nautilus_app, uri, ctx, &error))
-      {
-        g_warning ("Unable to launch '%s': %s", commandline, error->message);
-        goto out;
-      }
-  }
-
-  ret_val = GDK_EVENT_STOP;
-
- out:
-  return ret_val;
+  result = freedesktop_org_freedesktop_file_manager1_call_show_items_sync (proxy, index_types, "", NULL,NULL);
+  if (result)
+    g_print ("printing result TRUE\n");
+  return result;
 }
 
 

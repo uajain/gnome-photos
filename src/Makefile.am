@@ -13,6 +13,8 @@ gnome_photos_built_sources = \
 	photos-dleyna-renderer-manager.h \
 	photos-dleyna-renderer-push-host.c \
 	photos-dleyna-renderer-push-host.h \
+	photos-file-manager1.c \
+	photos-file-manager1.h \
 	photos-gom-miner.c \
 	photos-gom-miner.h \
 	photos-marshalers.c \
@@ -616,11 +618,11 @@ photos-dleyna-renderer-push-host.h photos-dleyna-renderer-push-host.c: photos-dl
 		$<
 
 photos-file-manager1.h photos-file-manager1.c: photos-file-manager1.xml
-  $(AM_V_GEN)gdbus-codegen \
+	$(AM_V_GEN)gdbus-codegen \
     --c-generate-autocleanup all \
     --c-namespace Freedesktop \
     --generate-c-code photos-file-manager1 \
-    --interface-prefix org.freedesktop.FileManager1 \
+    --interface-prefix org.freedesktop.FileManager1. \
     $<
 
 photos-gom-miner.h photos-gom-miner.c: photos-gom-miner.xml
