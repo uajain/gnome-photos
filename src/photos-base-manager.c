@@ -254,7 +254,7 @@ static void
 photos_base_manager_default_remove_object_by_id (PhotosBaseManager *self, const gchar *id)
 {
   PhotosBaseManagerPrivate *priv;
-  GObject *object;
+  g_autoptr (GObject) object = NULL;
   PhotosBaseManagerObjectData *object_data;
   guint position;
 
@@ -272,8 +272,6 @@ photos_base_manager_default_remove_object_by_id (PhotosBaseManager *self, const 
 
   photos_base_manager_objects_changed (self, position, 1, 0);
   g_signal_emit (self, signals[OBJECT_REMOVED], 0, object);
-
-  g_object_unref (object);
 }
 
 
@@ -599,8 +597,8 @@ photos_base_manager_get_all_filter (PhotosBaseManager *self)
   const gchar *blank = "(true)";
   const gchar *id;
   gchar *filter;
-  gchar **strv;
-  gchar *tmp;
+  g_auto (GStrv) strv = NULL;
+  g_autofree gchar *tmp = NULL;
   guint i;
   guint length;
 
@@ -638,11 +636,9 @@ photos_base_manager_get_all_filter (PhotosBaseManager *self)
     strv[0] = g_strdup (blank);
 
   filter = g_strjoinv (" || ", strv);
-  g_strfreev (strv);
 
   tmp = filter;
   filter = g_strconcat ("(", filter, ")", NULL);
-  g_free (tmp);
 
   return filter;
 }
